@@ -14,7 +14,7 @@ from telegram.ext import (
 )
 
 # Токен, который ты получил от BotFather
-TOKEN = "5282240819:AAGADs0rGmFmyuJfSR5C81xrEjCsBvaZcT0"
+TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
 
 # Данные о времени
 sleep_schedule = {
