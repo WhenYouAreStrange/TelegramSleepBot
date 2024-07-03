@@ -57,11 +57,55 @@ last_log_date = {}
 # Словарь для хранения последнего отправленного упражнения
 last_exercise = {}
 
+# Словарь для хранения достижений пользователей
+user_achievements = {}
+
 
 # Функция для проверки корректности времени
 def is_valid_time(time_str):
     match = re.match(r"^([01]?[0-9]|2[0-3]):([0-5][0-9])$", time_str)
     return bool(match)
+
+
+# Функция для проверки достижений пользователя
+def check_achievements(user_id):
+    user_data = sleep_data.get(user_id, [])
+    if user_id not in user_achievements:
+        user_achievements[user_id] = []
+
+    if len(user_data) >= 3 and "Начинающий сонник" not in user_achievements[user_id]:
+        user_achievements[user_id].append("Начинающий сонник")
+        return "Вы получили достижение: Начинающий сонник (Логирование сна в течение 3 дней подряд)!"
+
+    if len(user_data) >= 7 and "Продвинутый сонник" not in user_achievements[user_id]:
+        user_achievements[user_id].append("Продвинутый сонник")
+        return "Вы получили достижение: Продвинутый сонник (Логирование сна в течение 7 дней подряд)!"
+
+    if len(user_data) >= 30 and "Мастер сна" not in user_achievements[user_id]:
+        user_achievements[user_id].append("Мастер сна")
+        return "Вы получили достижение: Мастер сна (Логирование сна в течение 30 дней подряд)!"
+
+    if (
+        all(
+            datetime.strptime(entry["sleep_time"], "%H:%M").hour < 22
+            for entry in user_data[-5:]
+        )
+        and "Ранний пташка" not in user_achievements[user_id]
+    ):
+        user_achievements[user_id].append("Ранний пташка")
+        return "Вы получили достижение: Ранний пташка (Ложиться спать до 22:00 в течение 5 дней подряд)!"
+
+    if (
+        all(
+            datetime.strptime(entry["sleep_time"], "%H:%M").hour >= 0
+            for entry in user_data[-5:]
+        )
+        and "Ночной сова" not in user_achievements[user_id]
+    ):
+        user_achievements[user_id].append("Ночной сова")
+        return "Вы получили достижение: Ночной сова (Ложиться спать после 00:00 в течение 5 дней подряд)!"
+
+    return None
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -149,9 +193,15 @@ async def save_sleep_data(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     sleep_data[user_id][-1]["wake_time"] = wake_time
     last_log_date[user_id] = datetime.now().date()
+
     await update.message.reply_text(
         f'Данные о сне сохранены: Легли спать в {sleep_data[user_id][-1]["sleep_time"]}, проснулись в {wake_time}.'
     )
+
+    achievement_message = check_achievements(user_id)
+    if achievement_message:
+        await update.message.reply_text(achievement_message)
+
     return ConversationHandler.END
 
 
@@ -222,6 +272,16 @@ async def send_monthly_report(
     await update.message.reply_photo(photo=open("monthly_report.png", "rb"))
 
 
+async def show_achievements(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.message.from_user.id
+    achievements = user_achievements.get(user_id, [])
+
+    if not achievements:
+        await update.message.reply_text("У вас пока нет достижений.")
+    else:
+        await update.message.reply_text(f'Ваши достижения: {", ".join(achievements)}')
+
+
 def main() -> None:
     application = Application.builder().token(TOKEN).build()
 
@@ -231,6 +291,7 @@ def main() -> None:
     application.add_handler(CommandHandler("exercises", send_exercises))
     application.add_handler(CommandHandler("weekly_report", send_weekly_report))
     application.add_handler(CommandHandler("monthly_report", send_monthly_report))
+    application.add_handler(CommandHandler("achievements", show_achievements))
 
     # Обработчик для записи данных о сне
     conv_handler = ConversationHandler(
