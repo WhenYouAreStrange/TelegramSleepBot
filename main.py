@@ -14,7 +14,7 @@ from telegram.ext import (
 )
 
 # Токен, который ты получил от BotFather
-TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+TOKEN = "5282240819:AAGADs0rGmFmyuJfSR5C81xrEjCsBvaZcT0"
 
 # Данные о времени
 sleep_schedule = {
@@ -57,6 +57,9 @@ last_log_date = {}
 # Словарь для хранения последнего отправленного упражнения
 last_exercise = {}
 
+# Словарь для хранения последнего отправленного совета
+last_tip = {}
+
 # Словарь для хранения достижений пользователей
 user_achievements = {}
 
@@ -81,7 +84,7 @@ def check_achievements(user_id):
         user_achievements[user_id].append("Продвинутый сонник")
         return "Вы получили достижение: Продвинутый сонник (Логирование сна в течение 7 дней подряд)!"
 
-    if len(user_data) >= 30 and "Мастер сна" not in user_achievements[user_id]:
+    if len(user_data) >= 30 or "Мастер сна" not in user_achievements[user_id]:
         user_achievements[user_id].append("Мастер сна")
         return "Вы получили достижение: Мастер сна (Логирование сна в течение 30 дней подряд)!"
 
@@ -132,7 +135,14 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 
 async def send_tips(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.message.from_user.id
     tip = random.choice(sleep_tips)
+
+    # Проверка, чтобы не отправлять подряд два одинаковых совета
+    while user_id in last_tip and tip == last_tip[user_id]:
+        tip = random.choice(sleep_tips)
+
+    last_tip[user_id] = tip
     await update.message.reply_text(f"Совет по улучшению сна: {tip}")
 
 
