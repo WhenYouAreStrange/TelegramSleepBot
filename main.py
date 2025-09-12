@@ -1,14 +1,11 @@
-import random
-import re
-from datetime import datetime, timedelta
+from telegram.error import InvalidToken
+from datetime import datetime
 import matplotlib.pyplot as plt
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, ConversationHandler, \
     MessageHandler, filters
-import sqlite3
-
-# Токен, который ты получил от BotFather
-TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+from db import insert_sleep_data, get_sleep_data, insert_achievement, get_achievements
+from utils import load_tips, load_exercises, is_valid_time, calculate_sleep_duration, choose_random_non_repeating, get_token_from_dotenv_file
 
 # Данные о времени
 sleep_schedule = {
@@ -22,44 +19,6 @@ sleep_schedule = {
     '9:30': ['00:15', '01:45']
 }
 
-def create_tables():
-    conn = sqlite3.connect('sleepbot.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS sleep_data (
-        user_id INTEGER,
-        sleep_time TEXT,
-        wake_time TEXT,
-        date TEXT
-    )
-    ''')
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS achievements (
-        user_id INTEGER,
-        achievement TEXT
-    )
-    ''')
-    conn.commit()
-    conn.close()
-
-create_tables()
-
-# Функция для чтения советов и упражнений из текстовых файлов
-def load_tips(filename='sleep_tips.txt'):
-    try:
-        with open(filename, 'r', encoding='utf-8') as file:
-            tips = file.readlines()
-        return [tip.strip() for tip in tips]
-    except FileNotFoundError:
-        return []
-
-def load_exercises(filename='sleep_exercises.txt'):
-    try:
-        with open(filename, 'r', encoding='utf-8') as file:
-            exercises = file.readlines()
-        return [exercise.strip() for exercise in exercises]
-    except FileNotFoundError:
-        return []
 
 sleep_tips = load_tips()
 sleep_exercises = load_exercises()
@@ -72,54 +31,6 @@ last_exercise = {}
 
 # Словарь для хранения последнего отправленного совета
 last_tip = {}
-
-# Функция для проверки корректности времени
-def is_valid_time(time_str):
-    match = re.match(r'^([01]?[0-9]|2[0-3]):([0-5][0-9])$', time_str)
-    return bool(match)
-
-# Функции для работы с SQLite
-def insert_sleep_data(user_id, sleep_time, wake_time, date):
-    conn = sqlite3.connect('sleepbot.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-    INSERT INTO sleep_data (user_id, sleep_time, wake_time, date)
-    VALUES (?, ?, ?, ?)
-    ''', (user_id, sleep_time, wake_time, date))
-    conn.commit()
-    conn.close()
-
-def get_sleep_data(user_id):
-    conn = sqlite3.connect('sleepbot.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-    SELECT sleep_time, wake_time, date FROM sleep_data
-    WHERE user_id = ?
-    ''', (user_id,))
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
-
-def insert_achievement(user_id, achievement):
-    conn = sqlite3.connect('sleepbot.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-    INSERT INTO achievements (user_id, achievement)
-    VALUES (?, ?)
-    ''', (user_id, achievement))
-    conn.commit()
-    conn.close()
-
-def get_achievements(user_id):
-    conn = sqlite3.connect('sleepbot.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-    SELECT achievement FROM achievements
-    WHERE user_id = ?
-    ''', (user_id,))
-    rows = cursor.fetchall()
-    conn.close()
-    return [row[0] for row in rows]
 
 def check_achievements(user_id):
     user_data = get_sleep_data(user_id)
@@ -139,7 +50,12 @@ def check_achievements(user_id):
     if all(datetime.strptime(entry[0], '%H:%M').hour < 22 for entry in user_data[-5:]) and 'Ранний пташка' not in achievements:
         new_achievements.append('Ранний пташка')
 
-    if all(datetime.strptime(entry[0], '%H:%M').hour >= 0 for entry in user_data[-5:]) and 'Ночной сова' not in achievements:
+    # Ночной сова: последние 5 записей с поздним отходом (>= 00:30)
+    def is_late_bedtime(hhmm: str) -> bool:
+        t = datetime.strptime(hhmm, '%H:%M')
+        return t.hour > 0 or (t.hour == 0 and t.minute >= 30)
+
+    if len(user_data) >= 5 and all(is_late_bedtime(entry[0]) for entry in user_data[-5:]) and 'Ночной сова' not in achievements:
         new_achievements.append('Ночной сова')
 
     for achievement in new_achievements:
@@ -171,24 +87,18 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 async def send_tips(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
-    tip = random.choice(sleep_tips)
-
-    # Проверка, чтобы не отправлять подряд два одинаковых совета
-    while user_id in last_tip and tip == last_tip[user_id]:
-        tip = random.choice(sleep_tips)
-
-    last_tip[user_id] = tip
+    tip = choose_random_non_repeating(last_tip, user_id, sleep_tips)
+    if tip is None:
+        await update.message.reply_text('Нет доступных советов сейчас. Добавьте записи в sleep_tips.txt.')
+        return
     await update.message.reply_text(f'Совет по улучшению сна: {tip}')
 
 async def send_exercises(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
-    exercise = random.choice(sleep_exercises)
-
-    # Проверка, чтобы не отправлять подряд два одинаковых упражнения
-    while user_id in last_exercise and exercise == last_exercise[user_id]:
-        exercise = random.choice(sleep_exercises)
-
-    last_exercise[user_id] = exercise
+    exercise = choose_random_non_repeating(last_exercise, user_id, sleep_exercises)
+    if exercise is None:
+        await update.message.reply_text('Нет доступных упражнений сейчас. Добавьте записи в sleep_exercises.txt.')
+        return
     await update.message.reply_text(f'Упражнение для улучшения сна: {exercise}')
 
 async def log_sleep(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -238,13 +148,7 @@ async def save_sleep_data(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text(f'Данные о сне сохранены: Легли спать в {sleep_time}, проснулись в {wake_time}.')
     return ConversationHandler.END
 
-def calculate_sleep_duration(sleep_time: str, wake_time: str) -> float:
-    sleep_dt = datetime.strptime(sleep_time, '%H:%M')
-    wake_dt = datetime.strptime(wake_time, '%H:%M')
-    if wake_dt < sleep_dt:
-        wake_dt += timedelta(days=1)
-    duration = (wake_dt - sleep_dt).seconds / 3600
-    return duration
+ 
 
 async def send_weekly_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
@@ -264,9 +168,11 @@ async def send_weekly_report(update: Update, context: ContextTypes.DEFAULT_TYPE)
     plt.ylabel('Часы сна')
     plt.grid(True)
     plt.savefig('weekly_report.png')
+    plt.close()
 
     await update.message.reply_text(f'Средняя продолжительность сна за последнюю неделю: {avg_duration:.2f} часов.')
-    await update.message.reply_photo(photo=open('weekly_report.png', 'rb'))
+    with open('weekly_report.png', 'rb') as f:
+        await update.message.reply_photo(photo=f)
 
 async def send_monthly_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
@@ -286,9 +192,11 @@ async def send_monthly_report(update: Update, context: ContextTypes.DEFAULT_TYPE
     plt.ylabel('Часы сна')
     plt.grid(True)
     plt.savefig('monthly_report.png')
+    plt.close()
 
     await update.message.reply_text(f'Средняя продолжительность сна за последний месяц: {avg_duration:.2f} часов.')
-    await update.message.reply_photo(photo=open('monthly_report.png', 'rb'))
+    with open('monthly_report.png', 'rb') as f:
+        await update.message.reply_photo(photo=f)
 
 async def show_achievements(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
@@ -300,31 +208,37 @@ async def show_achievements(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await update.message.reply_text(f'Ваши достижения: {", ".join(achievements)}')
 
 def main() -> None:
-    application = Application.builder().token(TOKEN).build()
+    try:
+        token = get_token_from_dotenv_file()
+        application = Application.builder().token(token).build()
 
-    # Обработчики команд
-    application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler('tips', send_tips))
-    application.add_handler(CommandHandler('exercises', send_exercises))
-    application.add_handler(CommandHandler('weekly_report', send_weekly_report))
-    application.add_handler(CommandHandler('monthly_report', send_monthly_report))
-    application.add_handler(CommandHandler('achievements', show_achievements))
+        # Обработчики команд
+        application.add_handler(CommandHandler('start', start))
+        application.add_handler(CommandHandler('tips', send_tips))
+        application.add_handler(CommandHandler('exercises', send_exercises))
+        application.add_handler(CommandHandler('weekly_report', send_weekly_report))
+        application.add_handler(CommandHandler('monthly_report', send_monthly_report))
+        application.add_handler(CommandHandler('achievements', show_achievements))
 
-    # Обработчик для записи данных о сне
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('log_sleep', log_sleep)],
-        states={
-            LOGGING_SLEEP: [MessageHandler(filters.TEXT & ~filters.COMMAND, log_wake)],
-            LOGGING_WAKE: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_sleep_data)],
-        },
-        fallbacks=[CommandHandler('log_sleep', log_sleep)],  # Добавляем обработчик для fallbacks
-    )
-    application.add_handler(conv_handler)
+        # Обработчик для записи данных о сне
+        conv_handler = ConversationHandler(
+            entry_points=[CommandHandler('log_sleep', log_sleep)],
+            states={
+                LOGGING_SLEEP: [MessageHandler(filters.TEXT & ~filters.COMMAND, log_wake)],
+                LOGGING_WAKE: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_sleep_data)],
+            },
+            fallbacks=[CommandHandler('log_sleep', log_sleep)],  # Добавляем обработчик для fallbacks
+        )
+        application.add_handler(conv_handler)
 
-    # Обработчик для выбора времени пробуждения
-    application.add_handler(CallbackQueryHandler(show_times))
+        # Обработчик для выбора времени пробуждения
+        application.add_handler(CallbackQueryHandler(show_times))
 
-    application.run_polling()
+        application.run_polling()
+    except InvalidToken:
+        print('ОШИБКА: Неверный токен Telegram-бота. Пожалуйста, проверьте ваш .env файл.')
+    except Exception as e:
+        print(f'Произошла непредвиденная ошибка: {e}')
 
 if __name__ == '__main__':
     main()
