@@ -47,6 +47,9 @@ def check_achievements(user_id):
     if len(user_data) >= 30 and 'Мастер сна' not in achievements:
         new_achievements.append('Мастер сна')
 
+    if len(user_data) >= 100 and 'Повелитель снов' not in achievements:
+        new_achievements.append('Повелитель снов')
+
     if all(datetime.strptime(entry[0], '%H:%M').hour < 22 for entry in user_data[-5:]) and 'Ранний пташка' not in achievements:
         new_achievements.append('Ранний пташка')
 
@@ -57,6 +60,33 @@ def check_achievements(user_id):
 
     if len(user_data) >= 5 and all(is_late_bedtime(entry[0]) for entry in user_data[-5:]) and 'Ночной сова' not in achievements:
         new_achievements.append('Ночной сова')
+
+    # Идеальный сон: продолжительность последнего сна от 7 до 9 часов
+    if user_data:
+        last_sleep_entry = user_data[-1]
+        sleep_duration = calculate_sleep_duration(last_sleep_entry[0], last_sleep_entry[1])
+        if 7 <= sleep_duration <= 9 and 'Идеальный сон' not in achievements:
+            new_achievements.append('Идеальный сон')
+
+    # "Стабильный режим": ложится и встает примерно в одно и то же время (разница не более 30 минут) 5 дней подряд.
+    def time_to_minutes(hhmm: str) -> int:
+        t = datetime.strptime(hhmm, '%H:%M')
+        minutes = t.hour * 60 + t.minute
+        if t.hour < 12:  # Сдвигаем утренние часы вперед для корректного сравнения
+            minutes += 24 * 60
+        return minutes
+
+    if len(user_data) >= 5 and 'Стабильный режим' not in achievements:
+        last_five_entries = user_data[-5:]
+        
+        sleep_times_in_minutes = [time_to_minutes(entry[0]) for entry in last_five_entries]
+        wake_times_in_minutes = [datetime.strptime(entry[1], '%H:%M').hour * 60 + datetime.strptime(entry[1], '%H:%M').minute for entry in last_five_entries]
+
+        sleep_diff = max(sleep_times_in_minutes) - min(sleep_times_in_minutes)
+        wake_diff = max(wake_times_in_minutes) - min(wake_times_in_minutes)
+
+        if sleep_diff <= 30 and wake_diff <= 30:
+            new_achievements.append('Стабильный режим')
 
     for achievement in new_achievements:
         insert_achievement(user_id, achievement)
