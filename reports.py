@@ -6,7 +6,7 @@ from utils import calculate_sleep_duration
 
 async def send_weekly_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
-    user_data = get_sleep_data(user_id)
+    user_data = await get_sleep_data(user_id)
     if len(user_data) < 7:
         await update.message.reply_text('Недостаточно данных для формирования недельного отчета.')
         return
@@ -31,7 +31,7 @@ async def send_weekly_report(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def send_monthly_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
-    user_data = get_sleep_data(user_id)
+    user_data = await get_sleep_data(user_id)
     if len(user_data) < 30:
         await update.message.reply_text('Недостаточно данных для формирования месячного отчета.')
         return

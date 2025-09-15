@@ -1,42 +1,43 @@
 from datetime import datetime
 from db import get_sleep_data, get_achievements, insert_achievement
 from utils import calculate_sleep_duration
+from config import ACHIEVEMENT_NAMES
 
-def check_achievements(user_id):
-    user_data = get_sleep_data(user_id)
-    achievements = get_achievements(user_id)
+async def check_achievements(user_id):
+    user_data = await get_sleep_data(user_id)
+    achievements = await get_achievements(user_id)
 
     new_achievements = []
 
-    if len(user_data) >= 3 and 'Сонный новичок' not in achievements:
-        new_achievements.append('Сонный новичок')
+    if len(user_data) >= 3 and ACHIEVEMENT_NAMES['newbie'] not in achievements:
+        new_achievements.append(ACHIEVEMENT_NAMES['newbie'])
 
-    if len(user_data) >= 7 and 'Сонный эксперт' not in achievements:
-        new_achievements.append('Сонный эксперт')
+    if len(user_data) >= 7 and ACHIEVEMENT_NAMES['expert'] not in achievements:
+        new_achievements.append(ACHIEVEMENT_NAMES['expert'])
 
-    if len(user_data) >= 30 and 'Мастер сна' not in achievements:
-        new_achievements.append('Мастер сна')
+    if len(user_data) >= 30 and ACHIEVEMENT_NAMES['master'] not in achievements:
+        new_achievements.append(ACHIEVEMENT_NAMES['master'])
 
-    if len(user_data) >= 100 and 'Повелитель снов' not in achievements:
-        new_achievements.append('Повелитель снов')
+    if len(user_data) >= 100 and ACHIEVEMENT_NAMES['lord'] not in achievements:
+        new_achievements.append(ACHIEVEMENT_NAMES['lord'])
 
-    if all(datetime.strptime(entry[0], '%H:%M').hour < 22 for entry in user_data[-5:]) and 'Ранняя пташка' not in achievements:
-        new_achievements.append('Ранняя пташка')
+    if all(datetime.strptime(entry[0], '%H:%M').hour < 22 for entry in user_data[-5:]) and ACHIEVEMENT_NAMES['early_bird'] not in achievements:
+        new_achievements.append(ACHIEVEMENT_NAMES['early_bird'])
 
     # Ночной сова: последние 5 записей с поздним отходом (>= 00:30)
     def is_late_bedtime(hhmm: str) -> bool:
         t = datetime.strptime(hhmm, '%H:%M')
         return t.hour > 0 or (t.hour == 0 and t.minute >= 30)
 
-    if len(user_data) >= 5 and all(is_late_bedtime(entry[0]) for entry in user_data[-5:]) and 'Ночная сова' not in achievements:
-        new_achievements.append('Ночная сова')
+    if len(user_data) >= 5 and all(is_late_bedtime(entry[0]) for entry in user_data[-5:]) and ACHIEVEMENT_NAMES['night_owl'] not in achievements:
+        new_achievements.append(ACHIEVEMENT_NAMES['night_owl'])
 
     # Идеальный сон: продолжительность последнего сна от 7 до 9 часов
     if user_data:
         last_sleep_entry = user_data[-1]
         sleep_duration = calculate_sleep_duration(last_sleep_entry[0], last_sleep_entry[1])
-        if 7 <= sleep_duration <= 9 and 'Идеальный сон' not in achievements:
-            new_achievements.append('Идеальный сон')
+        if 7 <= sleep_duration <= 9 and ACHIEVEMENT_NAMES['perfect_sleep'] not in achievements:
+            new_achievements.append(ACHIEVEMENT_NAMES['perfect_sleep'])
 
     # "Стабильный режим": ложится и встает примерно в одно и то же время (разница не более 30 минут) 5 дней подряд.
     def time_to_minutes(hhmm: str) -> int:
@@ -46,7 +47,7 @@ def check_achievements(user_id):
             minutes += 24 * 60
         return minutes
 
-    if len(user_data) >= 5 and 'Стабильный режим' not in achievements:
+    if len(user_data) >= 5 and ACHIEVEMENT_NAMES['stable_regime'] not in achievements:
         last_five_entries = user_data[-5:]
         
         sleep_times_in_minutes = [time_to_minutes(entry[0]) for entry in last_five_entries]
@@ -56,9 +57,9 @@ def check_achievements(user_id):
         wake_diff = max(wake_times_in_minutes) - min(wake_times_in_minutes)
 
         if sleep_diff <= 30 and wake_diff <= 30:
-            new_achievements.append('Стабильный режим')
+            new_achievements.append(ACHIEVEMENT_NAMES['stable_regime'])
 
     for achievement in new_achievements:
-        insert_achievement(user_id, achievement)
+        await insert_achievement(user_id, achievement)
 
     return new_achievements

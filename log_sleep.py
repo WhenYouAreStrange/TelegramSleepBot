@@ -8,16 +8,16 @@ import achievements
 # Состояния для ConversationHandler
 LOGGING_SLEEP, LOGGING_WAKE = range(2)
 
-def has_sleep_data_for_today(user_id):
+async def has_sleep_data_for_today(user_id):
     today = datetime.now().date().isoformat()
-    sleep_data = get_sleep_data(user_id)
+    sleep_data = await get_sleep_data(user_id)
     return any(entry[2] == today for entry in sleep_data)
 
 async def log_sleep(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
 
     # Проверка, вводил ли пользователь данные о сне сегодня
-    if has_sleep_data_for_today(user_id):
+    if await has_sleep_data_for_today(user_id):
         await update.message.reply_text('Вы уже вводили данные о сне сегодня. Пожалуйста, попробуйте снова завтра.')
         return ConversationHandler.END
 
@@ -51,9 +51,9 @@ async def save_sleep_data(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text('Ошибка: не найдено время, когда вы легли спать.')
         return ConversationHandler.END
 
-    insert_sleep_data(user_id, sleep_time, wake_time, datetime.now().date().isoformat())
+    await insert_sleep_data(user_id, sleep_time, wake_time, datetime.now().date().isoformat())
 
-    new_achievements = achievements.check_achievements(user_id)
+    new_achievements = await achievements.check_achievements(user_id)
     if new_achievements:
         await update.message.reply_text(f'Поздравляем! Вы получили новое достижение: {", ".join(new_achievements)}')
 
