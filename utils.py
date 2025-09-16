@@ -3,7 +3,7 @@ import random
 import re
 from datetime import datetime, timedelta
 from typing import List
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 
 
 def load_lines(filename: str) -> List[str]:
@@ -48,8 +48,6 @@ def calculate_sleep_duration(sleep_time: str, wake_time: str) -> float:
     duration = (wake_dt - sleep_dt).seconds / 3600
     return duration
 
-
-from dotenv import dotenv_values
 
 def get_token_from_dotenv_file() -> str:
     config = dotenv_values(".env")

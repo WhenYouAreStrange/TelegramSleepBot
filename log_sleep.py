@@ -8,10 +8,12 @@ import achievements
 # Состояния для ConversationHandler
 LOGGING_SLEEP, LOGGING_WAKE = range(2)
 
+
 async def has_sleep_data_for_today(user_id):
     today = datetime.now().date().isoformat()
     sleep_data = await get_sleep_data(user_id)
     return any(entry[2] == today for entry in sleep_data)
+
 
 async def log_sleep(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
@@ -23,6 +25,7 @@ async def log_sleep(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     await update.message.reply_text('Пожалуйста, введите время, когда вы легли спать (в формате ЧЧ:ММ):')
     return LOGGING_SLEEP
+
 
 async def log_wake(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id
@@ -36,6 +39,7 @@ async def log_wake(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['sleep_time'] = sleep_time
     await update.message.reply_text('Пожалуйста, введите время, когда вы проснулись (в формате ЧЧ:ММ):')
     return LOGGING_WAKE
+
 
 async def save_sleep_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_id = update.message.from_user.id

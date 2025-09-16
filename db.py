@@ -1,9 +1,9 @@
+from telegram.ext import Application
 import aiosqlite
 from typing import List, Tuple
 
 DB_FILE = 'sleepbot.db'
 
-from telegram.ext import Application
 
 async def create_tables(_: Application) -> None:
     """Асинхронно создает таблицы в базе данных, если они не существуют."""
@@ -42,6 +42,7 @@ async def create_tables(_: Application) -> None:
         ''')
         await db.commit()
 
+
 async def insert_sleep_data(user_id: int, sleep_time: str, wake_time: str, date: str) -> None:
     """Асинхронно вставляет или обновляет данные о сне."""
     async with aiosqlite.connect(DB_FILE) as db:
@@ -53,6 +54,7 @@ async def insert_sleep_data(user_id: int, sleep_time: str, wake_time: str, date:
             wake_time=excluded.wake_time
         ''', (user_id, sleep_time, wake_time, date))
         await db.commit()
+
 
 async def get_sleep_data(user_id: int) -> List[Tuple[str, str, str]]:
     """Асинхронно получает данные о сне пользователя."""
@@ -66,6 +68,7 @@ async def get_sleep_data(user_id: int) -> List[Tuple[str, str, str]]:
         rows = await cursor.fetchall()
         return rows
 
+
 async def insert_achievement(user_id: int, achievement: str) -> None:
     """Асинхронно вставляет новое достижение."""
     async with aiosqlite.connect(DB_FILE) as db:
@@ -74,6 +77,7 @@ async def insert_achievement(user_id: int, achievement: str) -> None:
         VALUES (?, ?)
         ''', (user_id, achievement))
         await db.commit()
+
 
 async def get_achievements(user_id: int) -> List[str]:
     """Асинхронно получает достижения пользователя."""

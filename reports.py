@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
+import os
 from telegram import Update
 from telegram.ext import ContextTypes
 from db import get_sleep_data
 from utils import calculate_sleep_duration
+
 
 async def send_weekly_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
@@ -12,7 +14,8 @@ async def send_weekly_report(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     last_week_data = user_data[-7:]
-    durations = [calculate_sleep_duration(entry[0], entry[1]) for entry in last_week_data]
+    durations = [calculate_sleep_duration(
+        entry[0], entry[1]) for entry in last_week_data]
     avg_duration = sum(durations) / len(durations)
 
     plt.figure(figsize=(10, 5))
@@ -28,6 +31,9 @@ async def send_weekly_report(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(f'Средняя продолжительность сна за последнюю неделю: {avg_duration:.2f} часов.')
     with open(f'weekly_report_{user_id}.png', 'rb') as f:
         await update.message.reply_photo(photo=f)
+    os.remove(f'monthly_report_{user_id}.png')
+    os.remove(f'weekly_report_{user_id}.png')
+
 
 async def send_monthly_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
@@ -37,7 +43,8 @@ async def send_monthly_report(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     last_month_data = user_data[-30:]
-    durations = [calculate_sleep_duration(entry[0], entry[1]) for entry in last_month_data]
+    durations = [calculate_sleep_duration(
+        entry[0], entry[1]) for entry in last_month_data]
     avg_duration = sum(durations) / len(durations)
 
     plt.figure(figsize=(10, 5))

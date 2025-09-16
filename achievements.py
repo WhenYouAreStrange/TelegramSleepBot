@@ -3,6 +3,7 @@ from db import get_sleep_data, get_achievements, insert_achievement
 from utils import calculate_sleep_duration
 from config import ACHIEVEMENT_NAMES
 
+
 async def check_achievements(user_id):
     user_data = await get_sleep_data(user_id)
     achievements = await get_achievements(user_id)
@@ -21,10 +22,10 @@ async def check_achievements(user_id):
     if len(user_data) >= 100 and ACHIEVEMENT_NAMES['lord'] not in achievements:
         new_achievements.append(ACHIEVEMENT_NAMES['lord'])
 
-    if all(datetime.strptime(entry[0], '%H:%M').hour < 22 for entry in user_data[-5:]) and ACHIEVEMENT_NAMES['early_bird'] not in achievements:
+    if len(user_data) >= 5 and all(datetime.strptime(entry[0], '%H:%M').hour < 22 for entry in user_data[-5:]) and ACHIEVEMENT_NAMES['early_bird'] not in achievements:
         new_achievements.append(ACHIEVEMENT_NAMES['early_bird'])
 
-    # Ночной сова: последние 5 записей с поздним отходом (>= 00:30)
+    # Ночная сова: последние 5 записей с поздним отходом (>= 00:30)
     def is_late_bedtime(hhmm: str) -> bool:
         t = datetime.strptime(hhmm, '%H:%M')
         return t.hour > 0 or (t.hour == 0 and t.minute >= 30)
@@ -35,7 +36,8 @@ async def check_achievements(user_id):
     # Идеальный сон: продолжительность последнего сна от 7 до 9 часов
     if user_data:
         last_sleep_entry = user_data[-1]
-        sleep_duration = calculate_sleep_duration(last_sleep_entry[0], last_sleep_entry[1])
+        sleep_duration = calculate_sleep_duration(
+            last_sleep_entry[0], last_sleep_entry[1])
         if 7 <= sleep_duration <= 9 and ACHIEVEMENT_NAMES['perfect_sleep'] not in achievements:
             new_achievements.append(ACHIEVEMENT_NAMES['perfect_sleep'])
 
@@ -49,9 +51,11 @@ async def check_achievements(user_id):
 
     if len(user_data) >= 5 and ACHIEVEMENT_NAMES['stable_regime'] not in achievements:
         last_five_entries = user_data[-5:]
-        
-        sleep_times_in_minutes = [time_to_minutes(entry[0]) for entry in last_five_entries]
-        wake_times_in_minutes = [datetime.strptime(entry[1], '%H:%M').hour * 60 + datetime.strptime(entry[1], '%H:%M').minute for entry in last_five_entries]
+
+        sleep_times_in_minutes = [time_to_minutes(
+            entry[0]) for entry in last_five_entries]
+        wake_times_in_minutes = [time_to_minutes(
+            entry[1]) for entry in last_five_entries]
 
         sleep_diff = max(sleep_times_in_minutes) - min(sleep_times_in_minutes)
         wake_diff = max(wake_times_in_minutes) - min(wake_times_in_minutes)
