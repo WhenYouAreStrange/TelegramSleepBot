@@ -6,6 +6,7 @@ from keyboards import get_main_keyboard, get_wake_time_keyboard, get_reports_key
 import reports
 import log_sleep
 from config import SLEEP_SCHEDULE
+import textwrap
 
 sleep_tips = load_tips()
 sleep_exercises = load_exercises()
@@ -50,7 +51,18 @@ async def send_tips(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if tip is None:
         await update.message.reply_text('Нет доступных советов сейчас. Добавьте записи в sleep_tips.txt.')
         return
-    await update.message.reply_text(f'Совет по улучшению сна: {tip}')
+    # Устанавливаем ширину строки. 45 - примерное значение, можно подобрать.
+    width = 45
+    wrapped_lines = textwrap.wrap(tip, width=width)
+
+    # Форматируем каждую строку: добавляем символ линии слева
+    formatted_lines = [f"│ {line}" for line in wrapped_lines]
+    formatted_tip = '\n'.join(formatted_lines)
+
+    # Формируем итоговый текст
+    final_text = f"Совет по улучшению сна:\n{formatted_tip}"
+
+    await update.message.reply_text(final_text)
 
 
 async def send_exercises(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -61,7 +73,18 @@ async def send_exercises(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if exercise is None:
         await update.message.reply_text('Нет доступных упражнений сейчас. Добавьте записи в sleep_exercises.txt.')
         return
-    await update.message.reply_text(f'Упражнение для улучшения сна: {exercise}')
+    # Устанавливаем ширину строки. 45 - примерное значение, можно подобрать.
+    width = 45
+    wrapped_lines = textwrap.wrap(exercise, width=width)
+
+    # Форматируем каждую строку: добавляем символ линии слева
+    formatted_lines = [f"│ {line}" for line in wrapped_lines]
+    formatted_exercise = '\n'.join(formatted_lines)
+
+    # Формируем итоговый текст без тройных кавычек
+    final_text = f"Упражнение для улучшения сна:\n{formatted_exercise}"
+    
+    await update.message.reply_text(final_text)
 
 
 async def send_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
