@@ -40,7 +40,7 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     wake_time = query.data
     sleep_times = SLEEP_SCHEDULE.get(wake_time, [])
 
-    response_text = f'Если нужно проснуться в {wake_time}, то лучше лечь спать в одно из следующих времён: {", ".join(sleep_times)}'
+    response_text = f'Чтобы проснуться в {wake_time}, рекомендуется лечь спать в {" или ".join(sleep_times)}. В этом случае цикл сна завершится удачно, и пробуждение будет легким.'
     await query.edit_message_text(text=response_text)
 
 
