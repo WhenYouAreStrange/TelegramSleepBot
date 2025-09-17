@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, MessageHandler, filters
 from db import get_achievements
 from utils import load_tips, load_exercises, choose_random_non_repeating
@@ -83,14 +83,24 @@ async def show_reports_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def show_achievements(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает достижения пользователя."""
+    """Показывает достижения пользователя с кнопками для репоста."""
     user_id = update.message.from_user.id
     user_achievements = await get_achievements(user_id)
 
     if not user_achievements:
         await update.message.reply_text('У вас пока нет достижений.')
-    else:
-        await update.message.reply_text(f'Ваши достижения: {", ".join(user_achievements)}')
+        return
+
+    keyboard = []
+    for achievement in user_achievements:
+        share_button = InlineKeyboardButton(
+            f"Поделиться: {achievement}",
+            switch_inline_query=f"Я получил достижение '{achievement}' в боте для отслеживания сна!"
+        )
+        keyboard.append([share_button])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text('Ваши достижения:', reply_markup=reply_markup)
 
 
 def get_log_sleep_conv_handler():
@@ -107,3 +117,19 @@ def get_log_sleep_conv_handler():
         },
         fallbacks=[CommandHandler('log_sleep', log_sleep.log_sleep)],
     )
+
+
+async def share_achievement(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает inline-запросы для репоста достижений."""
+    query = update.inline_query.query
+    if not query:
+        return
+
+    results = [
+        InlineQueryResultArticle(
+            id=query.upper(),
+            title="Поделиться достижением",
+            input_message_content=InputTextMessageContent(f"🎉 {query}")
+        )
+    ]
+    await update.inline_query.answer(results)

@@ -1,4 +1,4 @@
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler, InlineQueryHandler
 from telegram.error import InvalidToken
 
 from utils import get_token_from_dotenv_file
@@ -51,6 +51,7 @@ def main() -> None:
 
         # Обработчик для inline-кнопок
         application.add_handler(CallbackQueryHandler(handlers.show_times))
+        application.add_handler(InlineQueryHandler(handlers.share_achievement))
 
         # Запуск бота
         application.run_polling()
