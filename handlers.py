@@ -20,7 +20,7 @@ last_exercise = {}
 last_tip = {}
 
 
-async def load_data():
+async def load_data(_):
     """Асинхронно загружает советы и упражнения."""
     global sleep_tips, sleep_exercises
     sleep_tips = await load_tips()
