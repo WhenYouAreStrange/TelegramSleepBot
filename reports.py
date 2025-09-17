@@ -1,15 +1,21 @@
 import matplotlib.pyplot as plt
+import logging
 import os
 from telegram import Update
 from telegram.ext import ContextTypes
 from db import get_sleep_data
 from utils import calculate_sleep_duration
 
+logger = logging.getLogger(__name__)
+
 
 async def send_weekly_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
+    logger.info(f"User {user_id} requested a weekly report.")
     user_data = await get_sleep_data(user_id)
     if len(user_data) < 7:
+        logger.warning(
+            f"Not enough data for weekly report for user {user_id}. Data points: {len(user_data)}")
         await update.message.reply_text('Недостаточно данных для формирования недельного отчета.')
         return
 
@@ -31,14 +37,16 @@ async def send_weekly_report(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(f'Средняя продолжительность сна за последнюю неделю: {avg_duration:.2f} часов.')
     with open(f'weekly_report_{user_id}.png', 'rb') as f:
         await update.message.reply_photo(photo=f)
-    os.remove(f'monthly_report_{user_id}.png')
     os.remove(f'weekly_report_{user_id}.png')
 
 
 async def send_monthly_report(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.message.from_user.id
+    logger.info(f"User {user_id} requested a monthly report.")
     user_data = await get_sleep_data(user_id)
     if len(user_data) < 30:
+        logger.warning(
+            f"Not enough data for monthly report for user {user_id}. Data points: {len(user_data)}")
         await update.message.reply_text('Недостаточно данных для формирования месячного отчета.')
         return
 

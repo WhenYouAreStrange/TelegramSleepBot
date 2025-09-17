@@ -1,20 +1,32 @@
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler, InlineQueryHandler
 from telegram.error import InvalidToken
 
+import logging
 from utils import get_token_from_dotenv_file
+from handlers import load_data
 import handlers
 import reports
 from db import create_tables
 
 
 def main() -> None:
+    # Настройка логирования
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler("bot.log"),
+            logging.StreamHandler()
+        ]
+    )
+    logger = logging.getLogger(__name__)
     """Основная функция для запуска бота."""
     try:
         token = get_token_from_dotenv_file()
 
         # Создание application и передача post_init для асинхронной инициализации
-        application = Application.builder().token(
-            token).post_init(create_tables).build()
+        application = Application.builder().token(token).post_init(
+            create_tables).post_init(load_data).build()
 
         # Регистрация обработчиков
         application.add_handler(CommandHandler('start', handlers.start))
@@ -56,9 +68,9 @@ def main() -> None:
         # Запуск бота
         application.run_polling()
     except InvalidToken:
-        print('ОШИБКА: Неверный токен Telegram-бота. Пожалуйста, проверьте ваш .env файл.')
+        logger.error('ОШИБКА: Неверный токен Telegram-бота. Пожалуйста, проверьте ваш .env файл.')
     except Exception as e:
-        print(f'Произошла непредвиденная ошибка: {e}')
+        logger.error(f'Произошла непредвиденная ошибка: {e}', exc_info=True)
 
 
 if __name__ == '__main__':

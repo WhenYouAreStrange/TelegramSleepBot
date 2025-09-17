@@ -4,23 +4,24 @@ import re
 from datetime import datetime, timedelta
 from typing import List
 from dotenv import load_dotenv, dotenv_values
+import aiofiles
 
 
-def load_lines(filename: str) -> List[str]:
+async def load_lines(filename: str) -> List[str]:
     try:
-        with open(filename, 'r', encoding='utf-8') as file:
-            lines = [line.strip() for line in file if line.strip()]
+        async with aiofiles.open(filename, 'r', encoding='utf-8') as file:
+            lines = [line.strip() for line in await file.readlines() if line.strip()]
         return lines
     except FileNotFoundError:
         return []
 
 
-def load_tips(filename: str = 'sleep_tips.txt') -> List[str]:
-    return load_lines(filename)
+async def load_tips(filename: str = 'sleep_tips.txt') -> List[str]:
+    return await load_lines(filename)
 
 
-def load_exercises(filename: str = 'sleep_exercises.txt') -> List[str]:
-    return load_lines(filename)
+async def load_exercises(filename: str = 'sleep_exercises.txt') -> List[str]:
+    return await load_lines(filename)
 
 
 def is_valid_time(time_str: str) -> bool:

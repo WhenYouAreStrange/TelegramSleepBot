@@ -1,5 +1,8 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, InlineQueryResultArticle, InputTextMessageContent
+import logging
+import aiofiles
 from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, MessageHandler, filters
+from analysis import analyze_sleep_data
 from db import get_achievements
 from utils import load_tips, load_exercises, choose_random_non_repeating
 from keyboards import get_main_keyboard, get_wake_time_keyboard, get_reports_keyboard
@@ -8,16 +11,26 @@ import log_sleep
 from config import SLEEP_SCHEDULE
 import textwrap
 
-sleep_tips = load_tips()
-sleep_exercises = load_exercises()
+logger = logging.getLogger(__name__)
+sleep_tips = []
+sleep_exercises = []
 
 # Словари для хранения последних отправленных элементов
 last_exercise = {}
 last_tip = {}
 
 
+async def load_data():
+    """Асинхронно загружает советы и упражнения."""
+    global sleep_tips, sleep_exercises
+    sleep_tips = await load_tips()
+    sleep_exercises = await load_exercises()
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Отправляет приветственное сообщение и основную клавиатуру."""
+    user = update.effective_user
+    logger.info(f"User {user.id} ({user.username}) started the bot.")
     await update.message.reply_text(
         'Бот запущен. Используйте клавиатуру для взаимодействия.',
         reply_markup=get_main_keyboard()
@@ -45,22 +58,34 @@ async def show_times(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 
 async def send_tips(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Отправляет случайный совет по сну."""
+    """Отправляет персональный или случайный совет по сну."""
     user_id = update.message.from_user.id
-    tip = choose_random_non_repeating(last_tip, user_id, sleep_tips)
-    if tip is None:
-        await update.message.reply_text('Нет доступных советов сейчас. Добавьте записи в sleep_tips.txt.')
-        return
-    # Устанавливаем ширину строки. 45 - примерное значение, можно подобрать.
+    logger.info(f"User {user_id} requested a sleep tip.")
+
+    # Попытка получить персональный совет
+    personalized_tip = await analyze_sleep_data(user_id)
+
+    if personalized_tip:
+        tip = personalized_tip
+        final_text = f"Персональный совет:\n{tip}"
+    else:
+        # Если персональный совет недоступен, отправить случайный
+        logger.info(
+            f"Not enough data for personalized tip for user {user_id}. Sending random tip.")
+        tip = choose_random_non_repeating(last_tip, user_id, sleep_tips)
+        if tip is None:
+            logger.warning("No random sleep tips available.")
+            await update.message.reply_text('Нет доступных советов сейчас. Добавьте записи в sleep_tips.txt.')
+            return
+        final_text = f"Совет по улучшению сна:\n{tip}"
+    # Оборачиваем текст для аккуратного отображения
     width = 45
     wrapped_lines = textwrap.wrap(tip, width=width)
-
-    # Форматируем каждую строку: добавляем символ линии слева
     formatted_lines = [f"│ {line}" for line in wrapped_lines]
     formatted_tip = '\n'.join(formatted_lines)
 
-    # Формируем итоговый текст
-    final_text = f"Совет по улучшению сна:\n{formatted_tip}"
+    # Заменяем исходный tip на форматированный в final_text
+    final_text = final_text.replace(tip, formatted_tip)
 
     await update.message.reply_text(final_text)
 
@@ -68,9 +93,11 @@ async def send_tips(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def send_exercises(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Отправляет случайное упражнение для расслабления."""
     user_id = update.message.from_user.id
+    logger.info(f"User {user_id} requested a sleep exercise.")
     exercise = choose_random_non_repeating(
         last_exercise, user_id, sleep_exercises)
     if exercise is None:
+        logger.warning("No sleep exercises available.")
         await update.message.reply_text('Нет доступных упражнений сейчас. Добавьте записи в sleep_exercises.txt.')
         return
     # Устанавливаем ширину строки. 45 - примерное значение, можно подобрать.
@@ -89,11 +116,14 @@ async def send_exercises(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def send_help_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Отправляет справочное сообщение."""
+    user_id = update.message.from_user.id
+    logger.info(f"User {user_id} requested help.")
     try:
-        with open('help.txt', 'r', encoding='utf-8') as f:
-            help_text = f.read()
+        async with aiofiles.open('help.txt', 'r', encoding='utf-8') as f:
+            help_text = await f.read()
         await update.message.reply_text(help_text)
     except FileNotFoundError:
+        logger.error("Help file not found.")
         await update.message.reply_text('Справочная информация не найдена.')
 
 
