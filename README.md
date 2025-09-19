@@ -136,7 +136,6 @@ TelegramSleepBot/
 ├── requirements.txt     # Зависимости
 ├── .env.example        # Пример конфигурации
 ├── .gitignore          # Игнорируемые файлы
-├── bot.log              # Файл логов
 ├── sleep_tips.txt      # Советы по сну
 ├── sleep_exercises.txt # Упражнения для сна
 ├── help.txt             # Текст для команды /help
