@@ -85,7 +85,8 @@ async def get_achievements(user_id: int) -> List[str]:
         cursor = await db.execute('''
         SELECT achievement FROM achievements
         WHERE user_id = ?
-        ORDER BY achievement ASC
+        ORDER BY id DESC
+        LIMIT 1
         ''', (user_id,))
         rows = await cursor.fetchall()
         return [row[0] for row in rows]

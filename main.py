@@ -1,4 +1,4 @@
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler, InlineQueryHandler
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, InlineQueryHandler
 from telegram.error import InvalidToken
 
 import logging
@@ -15,7 +15,6 @@ def main() -> None:
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler("bot.log"),
             logging.StreamHandler()
         ]
     )

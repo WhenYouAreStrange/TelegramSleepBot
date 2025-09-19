@@ -61,5 +61,5 @@ async def save_sleep_data(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if new_achievements:
         await update.message.reply_text(f'Поздравляем! Вы получили новое достижение: {", ".join(new_achievements)}')
 
-    await update.message.reply_text(f'Данные о сне сохранены: Легли спать в {sleep_time}, проснулись в {wake_time}.')
+    await update.message.reply_text(f'Данные о сне сохранены:\nЛегли спать в {sleep_time}, проснулись в {wake_time}.')
     return ConversationHandler.END

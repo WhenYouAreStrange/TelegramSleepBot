@@ -67,7 +67,7 @@ async def send_tips(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if personalized_tip:
         tip = personalized_tip
-        final_text = f"Персональный совет:\n{tip}"
+        final_text = f" - Персональный совет:\n\n{tip}"
     else:
         # Если персональный совет недоступен, отправить случайный
         logger.info(
@@ -77,15 +77,7 @@ async def send_tips(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             logger.warning("No random sleep tips available.")
             await update.message.reply_text('Нет доступных советов сейчас. Добавьте записи в sleep_tips.txt.')
             return
-        final_text = f"Совет по улучшению сна:\n{tip}"
-    # Оборачиваем текст для аккуратного отображения
-    width = 45
-    wrapped_lines = textwrap.wrap(tip, width=width)
-    formatted_lines = [f"│ {line}" for line in wrapped_lines]
-    formatted_tip = '\n'.join(formatted_lines)
-
-    # Заменяем исходный tip на форматированный в final_text
-    final_text = final_text.replace(tip, formatted_tip)
+        final_text = f" - Совет по улучшению сна\n\n{tip}"
 
     await update.message.reply_text(final_text)
 
@@ -100,17 +92,9 @@ async def send_exercises(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.warning("No sleep exercises available.")
         await update.message.reply_text('Нет доступных упражнений сейчас. Добавьте записи в sleep_exercises.txt.')
         return
-    # Устанавливаем ширину строки. 45 - примерное значение, можно подобрать.
-    width = 45
-    wrapped_lines = textwrap.wrap(exercise, width=width)
+    # Формируем итоговый текст
+    final_text = f" - Упражнение для улучшения сна\n\n{exercise}"
 
-    # Форматируем каждую строку: добавляем символ линии слева
-    formatted_lines = [f"│ {line}" for line in wrapped_lines]
-    formatted_exercise = '\n'.join(formatted_lines)
-
-    # Формируем итоговый текст без тройных кавычек
-    final_text = f"Упражнение для улучшения сна:\n{formatted_exercise}"
-    
     await update.message.reply_text(final_text)
 
 
@@ -148,7 +132,7 @@ async def show_achievements(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     for achievement in user_achievements:
         share_button = InlineKeyboardButton(
             f"Поделиться: {achievement}",
-            switch_inline_query=f"Я получил достижение '{achievement}' в боте для отслеживания сна!"
+            switch_inline_query=f"Я получил новое достижение '{achievement}' в боте для отслеживания сна!"
         )
         keyboard.append([share_button])
 

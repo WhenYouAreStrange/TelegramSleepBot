@@ -56,3 +56,4 @@ def get_token_from_dotenv_file() -> str:
     if token:
         return token
     raise RuntimeError('Telegram bot token is not set in .env file.')
+
